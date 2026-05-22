@@ -109,30 +109,63 @@
 <div class="card">
   <p><strong>헬퍼</strong>가 뭐냐고요? Chrome 확장이 직접 컴퓨터 프로그램을 실행할 수 없어서, 사이에서 다리 역할을 해주는 작은 프로그램입니다.</p>
 
+  <div class="warn">⚠️ <strong>중요</strong>: 아래 모든 명령어는 <strong>압축을 푼 폴더(youtube-capture 폴더) 안에서</strong> 실행해야 합니다. 다른 폴더에서 실행하면 작동하지 않습니다.</div>
+
   <div class="step-row"><div class="num">1</div><div class="text">
     <strong>Node.js</strong> 설치 — <a href="https://nodejs.org/ko" target="_blank">nodejs.org/ko</a>에서 LTS 다운로드 → 더블클릭 → 다음 → 완료
     <div class="tip">💡 Node.js가 뭔지 몰라도 괜찮아요. 그냥 깔기만 하면 됩니다.</div>
   </div></div>
 
   <div class="step-row"><div class="num">2</div><div class="text">
-    내려받은 폴더에서 운영체제에 맞는 설치 마법사 더블클릭:
+    <strong>압축 푼 폴더로 이동</strong> — 파일 탐색기에서 youtube-capture 폴더를 찾아 경로를 복사합니다.
     <ul>
-      <li><strong>Windows</strong>: <code>installers\windows\install.bat</code></li>
-      <li><strong>macOS</strong>: <code>installers/macos/install.command</code>
-        <div class="tip">⚠️ macOS는 처음 열 때 보안 경고가 뜰 수 있어요. <strong>시스템 설정 → 개인정보보호 → "그래도 열기"</strong></div>
-      </li>
+      <li>Windows: 파일 탐색기에서 폴더 열기 → 주소창 클릭 → 경로 복사 (예: <code>C:\Users\홍길동\Downloads\youtube-capture</code>)</li>
     </ul>
   </div></div>
 
   <div class="step-row"><div class="num">3</div><div class="text">
-    검은 창이 자동으로 진행됩니다. <strong>가만히 기다리세요.</strong>
+    운영체제에 맞는 설치 마법사 실행:
+    <ul>
+      <li><strong>Windows</strong>: <code>installers\windows\install.bat</code> 더블클릭
+        <div class="tip">💡 install.bat을 더블클릭하면 자동으로 올바른 폴더 경로를 사용합니다.</div>
+      </li>
+      <li><strong>macOS</strong>: <code>installers/macos/install.command</code> 더블클릭
+        <div class="tip">⚠️ macOS는 처음 열 때 보안 경고가 뜰 수 있어요. <strong>시스템 설정 → 개인정보보호 → "그래도 열기"</strong></div>
+      </li>
+    </ul>
+    <div class="tip">💡 또는 터미널에서 직접 설치: 먼저 <code>cd C:\경로\youtube-capture</code>로 이동한 뒤 <code>node helper/manifest/install.mjs</code> 실행</div>
   </div></div>
 
   <div class="step-row"><div class="num">4</div><div class="text">
+    검은 창이 자동으로 진행됩니다. <strong>가만히 기다리세요.</strong>
+  </div></div>
+
+  <div class="step-row"><div class="num">5</div><div class="text">
     중간에 "Ollama를 자동 설치할까요? (Y/n)" 물으면 <strong>Y</strong> 입력 후 엔터
   </div></div>
 
   <div class="ok">✅ <strong>"설치 완료"</strong> 메시지가 나오면 성공!</div>
+</div>
+
+<h3>2-3. 헬퍼 삭제 방법</h3>
+<div class="card">
+  <p>더 이상 AI 기능이 필요 없거나 완전히 제거하고 싶다면:</p>
+
+  <div class="step-row"><div class="num">1</div><div class="text">
+    터미널(PowerShell)을 열고 youtube-capture 폴더로 이동:
+    <pre><code>cd C:\경로\youtube-capture</code></pre>
+  </div></div>
+
+  <div class="step-row"><div class="num">2</div><div class="text">
+    헬퍼 제거 명령어 실행:
+    <pre><code>node helper/manifest/install.mjs --uninstall</code></pre>
+  </div></div>
+
+  <div class="step-row"><div class="num">3</div><div class="text">
+    Chrome에서 확장도 제거하려면 <code>chrome://extensions</code> → 카드의 <strong>"삭제"</strong> 클릭
+  </div></div>
+
+  <div class="ok">✅ 헬퍼 등록이 시스템에서 완전히 제거됩니다.</div>
 </div>
 
 <h2 id="ai">3. AI 기능 켜기 (선택, 무료)</h2>
@@ -196,12 +229,36 @@ claude login</code></pre>
 
 <div class="card">
   <h3>🌏 영어 영상으로 공부하기</h3>
-  <p>영어 영상을 캡처하면 <strong>원본 영어 대본 + 한국어 번역</strong>이 자동으로 같이 저장됩니다. 한 줄씩 비교하며 공부하기 좋아요.</p>
+  <p>영어 영상을 캡처하면 <strong>원본 영어 대본</strong>이 깔끔하게 정리됩니다. 한 줄씩 읽으며 공부하기 좋아요.</p>
 </div>
 
 <div class="card">
   <h3>📊 인터뷰·세미나 분석</h3>
-  <p>CSV 포맷으로 저장하면 Excel에서 "타임스탬프, 발언, 번역" 3열로 나옵니다. 특정 키워드 검색하거나 통계 내기 좋음.</p>
+  <p>CSV 포맷으로 저장하면 Excel에서 "타임스탬프, 발언" 2열로 나옵니다. 특정 키워드 검색하거나 통계 내기 좋음.</p>
+</div>
+
+<div class="card" style="border-left: 4px solid #2D6FF7;">
+  <h3>🧠 꽁돈 인프라 — MD 파일을 최대한 활용하는 3단계 워크플로우</h3>
+  <p>캡처한 MD 파일 하나로 <strong>세컨브레인</strong>도 만들고 <strong>카드뉴스</strong>도 만드는 파이프라인:</p>
+  <table>
+    <tr><th>단계</th><th>도구</th><th>하는 일</th></tr>
+    <tr>
+      <td><strong>① 캡처</strong></td>
+      <td>youtube-capture</td>
+      <td><kbd>Ctrl+Shift+S</kbd> → MD 파일 저장</td>
+    </tr>
+    <tr>
+      <td><strong>② 세컨브레인</strong></td>
+      <td><a href="https://github.com/kkongdon-story/wiki-llm-starter" target="_blank">wiki-llm-starter</a></td>
+      <td>MD를 <code>raw/</code>에 복사 → Codex에게 ingest 명령 → <code>wiki/</code> 지식 페이지 자동 생성</td>
+    </tr>
+    <tr>
+      <td><strong>③ 카드뉴스</strong></td>
+      <td><a href="https://github.com/kkongdon-story/gpt-image-auto" target="_blank">gpt-image-auto</a></td>
+      <td>MD 파일 임포트 → ChatGPT 카드뉴스 자동 생성 → Threads 업로드</td>
+    </tr>
+  </table>
+  <div class="tip">💡 <strong>Codex 명령어</strong> (wiki-llm-starter에서): <code>templates/llm-wiki/CLAUDE.md 규칙을 읽고 raw/ 안의 자료를 ingest 해줘. wiki/ 페이지, ontology/abox.json, log.md를 함께 업데이트하고, 마지막에 scripts/ontology_reasoner.py로 온톨로지 검사를 실행해줘.</code></div>
 </div>
 
 <h2 id="trouble">6. 안 될 때 — 자주 묻는 질문</h2>

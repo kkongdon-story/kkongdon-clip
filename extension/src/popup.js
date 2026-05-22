@@ -4,10 +4,14 @@
 const $ = (id) => document.getElementById(id);
 const LAST_FORMAT_KEY = "lastUsedFormat";
 
-function setStatus(text, kind = "ok") {
+function setStatus(text, kind = "ok", showNextSteps = false) {
   const el = $("status");
   el.textContent = text;
   el.className = `status ${kind}`;
+  // 성공 시 다음 단계 안내 표시
+  const ns = $("nextSteps");
+  if (showNextSteps && kind === "ok") ns.classList.remove("hidden");
+  else ns.classList.add("hidden");
 }
 
 async function getActiveYouTubeTab() {
@@ -27,13 +31,13 @@ async function triggerCapture(format) {
 
   try {
     await chrome.tabs.sendMessage(tab.id, { type: "TRIGGER_CAPTURE", format });
-    setStatus("작업이 시작되었습니다. 잠시 후 결과를 확인하세요.", "ok");
+    setStatus("작업이 시작됐습니다. 잠시 후 저장 완료 알림이 뜹니다.", "ok", true);
   } catch (e) {
     // content script 미주입 시 강제 주입 후 재시도
     try {
       await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["src/content.js"] });
       await chrome.tabs.sendMessage(tab.id, { type: "TRIGGER_CAPTURE", format });
-      setStatus("작업이 시작되었습니다.", "ok");
+      setStatus("작업이 시작됐습니다.", "ok", true);
     } catch (e2) {
       setStatus(`오류: ${e2.message}`, "err");
     }

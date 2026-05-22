@@ -49,6 +49,14 @@
     .status.warn { background: #FEF3C7; color: #92400E; }
     .status.err { background: #FEE2E2; color: #991B1B; }
     .hidden { display: none; }
+    /* 다음 단계 안내 패널 */
+    .next-steps { margin-top: 10px; padding: 10px 12px; border-radius: 10px;
+                  background: #EFF6FF; border: 1px solid #BFDBFE; font-size: 12px; }
+    .next-steps .ns-title { font-weight: 700; color: var(--primary); margin-bottom: 7px; font-size: 12px; }
+    .next-steps .ns-item { display: flex; align-items: flex-start; gap: 8px; margin: 5px 0; line-height: 1.4; }
+    .next-steps .ns-item .ns-ic { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+    .next-steps .ns-item .ns-text { color: var(--text); }
+    .next-steps .ns-item .ns-text strong { color: var(--primary); }
   </style>
 </head>
 <body>
@@ -98,6 +106,19 @@
   </div>
 
   <div id="status" class="status hidden"></div>
+
+  <!-- 캡처 성공 후 다음 단계 안내 (기본 숨김) -->
+  <div id="nextSteps" class="next-steps hidden">
+    <div class="ns-title">✨ 저장됐어요! 다음엔 이렇게 활용해보세요</div>
+    <div class="ns-item">
+      <span class="ns-ic">🧠</span>
+      <span class="ns-text">MD 파일을 <strong>wiki-llm-starter/raw/</strong>에 복사하고 Codex에게 ingest 명령 → 세컨브레인 축적</span>
+    </div>
+    <div class="ns-item">
+      <span class="ns-ic">🗞️</span>
+      <span class="ns-text">MD 파일을 <strong>gpt-image-auto</strong>에서 임포트 → 카드뉴스 자동 생성 → Threads 업로드</span>
+    </div>
+  </div>
 
   <div class="footer">
     <span>단축키: <span class="kbd" id="kbd">Ctrl+Shift+S</span></span>
