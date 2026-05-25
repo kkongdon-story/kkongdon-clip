@@ -136,13 +136,19 @@
     } catch {}
 
     // 시각적 마킹 (<mark>)
+    // surroundContents()는 범위가 여러 노드에 걸치면 HierarchyRequestError → extractContents 폴백
     try {
       const mark = document.createElement("mark");
       mark.style.cssText = "background:#FFE066 !important;padding:0 1px;border-radius:2px;";
       mark.setAttribute("data-kkongdon", "hl");
-      range.surroundContents(mark);
+      try {
+        range.surroundContents(mark);       // 단일 노드 내 선택 → 빠른 경로
+      } catch {
+        mark.appendChild(range.extractContents()); // 멀티 노드 선택 → extract 후 wrap
+        range.insertNode(mark);
+      }
     } catch {
-      // 범위가 여러 노드에 걸친 경우 시각 마킹 생략 (저장은 정상)
+      // DOM 접근 자체가 불가한 경우 (shadow DOM 등) 시각 마킹만 생략, 저장은 정상
     }
 
     hideBtn();
