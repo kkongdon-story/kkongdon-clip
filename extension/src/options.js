@@ -33,6 +33,7 @@ const DEFAULTS = {
   subfolders: [],
   lastSubfolder: "",
   summaryInstruction: "문장을 항상 완전하게 작성하세요. 절대로 문장 중간에 끊지 마세요. 핵심 포인트의 각 항목은 반드시 마침표로 끝나는 완전한 문장이어야 합니다. 개요는 2~3개의 완전한 문장으로 작성하세요.",
+  includeImages: false,    // 웹 캡처 시 본문 이미지 URL을 MD에 포함 (기본 OFF)
 };
 
 // ───── 사용자 사전 (textarea ↔ object) ─────
@@ -217,6 +218,7 @@ async function load() {
   if ($("subfolders")) $("subfolders").value = Array.isArray(m.subfolders) ? m.subfolders.join("\n") : "";
   // AI 요약 메타 지침
   if ($("summaryInstruction")) $("summaryInstruction").value = m.summaryInstruction ?? DEFAULTS.summaryInstruction;
+  if ($("includeImages")) $("includeImages").checked = !!m.includeImages;
   updateLicenseStatus();
 }
 
@@ -254,6 +256,7 @@ async function save() {
       : [],
     // AI 요약 메타 지침
     summaryInstruction: $("summaryInstruction")?.value.trim() ?? DEFAULTS.summaryInstruction,
+    includeImages: $("includeImages")?.checked ?? false,
   });
   const saved = $("saved");
   saved.classList.add("show");

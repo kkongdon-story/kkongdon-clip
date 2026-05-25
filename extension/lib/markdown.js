@@ -191,7 +191,7 @@ export function buildFilename({ meta, pattern }) {
 // ── 웹 페이지 캡쳐 마크다운 ──────────────────────────────────────────────────
 // YouTube와 달리 타임스탬프 세그먼트 없음. frontmatter는 source: "web" 고정.
 
-export function buildWebMarkdown({ title, url, date, author, bodyText, aiSummary }) {
+export function buildWebMarkdown({ title, url, date, author, bodyText, aiSummary, images, includeImages }) {
   const captured = new Date().toISOString();
   const fm = [
     "---",
@@ -216,11 +216,15 @@ export function buildWebMarkdown({ title, url, date, author, bodyText, aiSummary
 
   const body = `## 본문\n\n${bodyText || "(본문 없음)"}\n`;
 
+  const imgSection = (includeImages && images?.length)
+    ? `\n## 이미지\n\n` + images.map(i => `![${i.alt || "image"}](${i.src})`).join("\n") + "\n"
+    : "";
+
   const ai = aiSummary?.text
     ? `\n## AI 요약 (${aiSummary.provider})\n\n${cleanWebSummary(aiSummary.text)}\n`
     : "";
 
-  return [fm, header, body, ai].filter(Boolean).join("\n");
+  return [fm, header, body, imgSection || null, ai].filter(Boolean).join("\n");
 }
 
 function cleanWebSummary(text) {

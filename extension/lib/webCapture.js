@@ -160,6 +160,22 @@ async function _extractPageContent() {
   // ── 본문 텍스트 추출 — DOM 워커로 문단 구분 보존 ────────────────────────────
   const bodyText = extractBlockText(bodyEl || root || document.body);
 
+  // ── 이미지 수집 (bodyEl 기준, 추적 픽셀·data: URI 제외) ─────────────────────
+  // 클론 노드는 naturalWidth=0 → URL 패턴으로 추적 픽셀 1차 필터, 크기는 2차 보조
+  const TRACK_RE = /\/(?:px|beacon|track|pixel|1x1|spacer)[._/]|[?&](?:w|h|width|height)=1(?:[&#]|$)|\.gif\?/i;
+  const images = [];
+  (bodyEl || root).querySelectorAll("img").forEach((img) => {
+    const rawSrc = img.getAttribute("src") || img.getAttribute("data-src") || img.src || "";
+    if (!rawSrc || rawSrc.startsWith("data:")) return;
+    let absUrl;
+    try { absUrl = new URL(rawSrc, location.href).href; } catch { return; }
+    if (!absUrl.startsWith("http")) return;   // http/https만 허용
+    if (TRACK_RE.test(absUrl)) return;        // 추적 픽셀 URL 패턴 제외
+    const nw = img.naturalWidth;
+    if (nw > 0 && nw < 100) return;           // 로드된 이미지가 100px 미만이면 아이콘으로 간주
+    images.push({ src: absUrl, alt: (img.alt || "").trim() });
+  });
+
   // 본문이 짧을 때 mainFrame iframe src 힌트 반환
   // 네이버 블로그는 <iframe id="mainFrame"> 안에 본문이 있어 allFrames 주입이 차단됨
   // → 서비스 워커가 해당 URL을 직접 동적 탭으로 열어 우회
@@ -167,7 +183,7 @@ async function _extractPageContent() {
     ? (document.querySelector('iframe#mainFrame, iframe[name="mainFrame"]')?.src || null)
     : null;
 
-  return { title: title.trim(), url: location.href, date, author, bodyText, _iframeSrc };
+  return { title: title.trim(), url: location.href, date, author, bodyText, images, _iframeSrc };
 }
 
 // ── 현재 탭 정적 추출 (+ allFrames iframe 폴백) ──────────────────────────────

@@ -102,4 +102,5 @@ export const SETTING_DEFAULTS = {
   lastSubfolder:      "",      // 마지막 선택된 하위 폴더
   // AI 요약 메타 지침 (CLAUDE.md와 동일한 개념 — 모든 요약 프롬프트 앞에 prepend)
   summaryInstruction: "문장을 항상 완전하게 작성하세요. 절대로 문장 중간에 끊지 마세요. 핵심 포인트의 각 항목은 반드시 마침표로 끝나는 완전한 문장이어야 합니다. 개요는 2~3개의 완전한 문장으로 작성하세요.",
+  includeImages: false,    // 웹 캡처 시 본문 이미지 URL을 MD에 포함 (기본 OFF)
 };

@@ -137,6 +137,33 @@ async function handleWebCapture(tabId, url, format = "md", subfolder = "") {
   catch { try { await runInTab({ target: { tabId }, files: ["src/content.js"] }); } catch {} }
 
   const settings = await getSettings();
+
+  // ── 선택 텍스트 조기 감지 — captureWebPage(고비용) 전에 먼저 확인 ──────────
+  // 별도 executeScript 호출로 폴백 파이프라인(allFrames/동적탭)과 완전히 분리
+  const [selResult] = await chrome.scripting.executeScript({
+    target: { tabId },
+    func: () => window.getSelection()?.toString().trim() || "",
+  }).catch(() => [{ result: "" }]);
+  const selectionText = selResult?.result || "";
+
+  if (selectionText.length > 20) {
+    // 선택 영역 캡처 — 전체 본문 추출 생략
+    const tab = await chrome.tabs.get(tabId).catch(() => null);
+    const selMd = buildSelectionMarkdown({
+      title: tab?.title || url, url,
+      selectionText,
+      date: new Date().toISOString().slice(0, 10),
+    });
+    const selFilename = applySubfolderToFilename(buildSelectionFilename({ title: tab?.title || url }), subfolder);
+    await saveFile(selFilename, selMd, "text/markdown");
+    chrome.notifications.create({
+      type: "basic", iconUrl: chrome.runtime.getURL("icons/128.png"),
+      title: "유튜브 스크립트 캡쳐",
+      message: `선택 영역 저장됨: ${selFilename}`,
+    }).catch(() => {});
+    return { ok: true, filename: selFilename };
+  }
+
   await notifyTab(tabId, "웹 페이지 본문 추출 중...");
 
   let data;
@@ -198,9 +225,10 @@ async function handleWebCapture(tabId, url, format = "md", subfolder = "") {
   }
 
   // Wiki 서식 또는 기본 MD 선택
+  const _imgOpts = { images: data.images || [], includeImages: settings.includeImages ?? false };
   const md = (settings.enableWikiFormat)
-    ? buildWikiWebMarkdown({ ...data, aiSummary, entities })
-    : buildWebMarkdown({ ...data, aiSummary });
+    ? buildWikiWebMarkdown({ ...data, aiSummary, entities, ..._imgOpts })
+    : buildWebMarkdown({ ...data, aiSummary, ..._imgOpts });
 
   const baseFilename = applySubfolderToFilename(
     buildWebFilename({ title: data.title }),
@@ -213,11 +241,12 @@ async function handleWebCapture(tabId, url, format = "md", subfolder = "") {
   if (fmt === "txt") {
     // MD에서 마커 제거
     output = md
-      .replace(/^---[\s\S]*?---\n/m, "")     // frontmatter 제거
-      .replace(/^#{1,6}\s+/gm, "")           // 헤더 마커 제거
-      .replace(/\*\*([^*]+)\*\*/g, "$1")     // 볼드 제거
-      .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1") // 링크 → 텍스트
-      .replace(/`([^`]+)`/g, "$1")           // 인라인 코드 제거
+      .replace(/^---[\s\S]*?---\n/m, "")        // frontmatter 제거
+      .replace(/^#{1,6}\s+/gm, "")              // 헤더 마커 제거
+      .replace(/\*\*([^*]+)\*\*/g, "$1")        // 볼드 제거
+      .replace(/!\[([^\]]*)\]\([^)]+\)/g, "$1") // 이미지 → alt 텍스트만 (URL 제거)
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")  // 링크 → 텍스트
+      .replace(/`([^`]+)`/g, "$1")              // 인라인 코드 제거
       .trim();
     mime = "text/plain"; ext = "txt";
   } else if (fmt === "html") {
@@ -238,14 +267,23 @@ async function handleWebCapture(tabId, url, format = "md", subfolder = "") {
         aiSummary.text.split("\n").map((l) => `<p>${esc(l)}</p>`).join("\n")
       : "";
 
+    // 이미지 섹션 — includeImages + data.images 있을 때만, 기존 esc/safeHref 재사용
+    const imagesHtml = (settings.includeImages && data.images?.length)
+      ? `<h2>이미지</h2>\n` +
+        data.images.map(i =>
+          `<img src="${safeHref(i.src)}" alt="${esc(i.alt || "image")}" style="max-width:100%;margin:8px 0;display:block">`
+        ).join("\n")
+      : "";
+
     output = `<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">
 <title>${esc(data.title)}</title>
-<style>body{font-family:-apple-system,sans-serif;max-width:800px;margin:2rem auto;padding:0 1rem;line-height:1.7}h1,h2,h3{color:#1F2937}a{color:#2D6FF7}</style>
+<style>body{font-family:-apple-system,sans-serif;max-width:800px;margin:2rem auto;padding:0 1rem;line-height:1.7}h1,h2,h3{color:#1F2937}a{color:#2D6FF7}img{border-radius:6px}</style>
 </head><body>
 <h1>${esc(data.title)}</h1>
 <p><strong>출처:</strong> <a href="${safeHref(data.url)}">${esc(data.url)}</a>${data.date ? ` | <strong>날짜:</strong> ${esc(data.date)}` : ""}${data.author ? ` | <strong>저자:</strong> ${esc(data.author)}` : ""}</p>
 <h2>본문</h2>
 ${bodyParas}
+${imagesHtml}
 ${summaryHtml}
 </body></html>`;
     mime = "text/html"; ext = "html";

@@ -280,7 +280,7 @@ export function buildWikiYouTubeMarkdown({ meta, captions, captionLang, aiSummar
  * @param {object} params.aiSummary - { provider, text } | null
  * @param {object} params.entities  - { people, companies, technologies, concepts } | null
  */
-export function buildWikiWebMarkdown({ title, url, date, author, bodyText, aiSummary, entities }) {
+export function buildWikiWebMarkdown({ title, url, date, author, bodyText, aiSummary, entities, images, includeImages }) {
   const effectiveDate = date || todayStr();
   const domainMatch   = (url || "").match(/^https?:\/\/([^/]+)/);
   const domain        = domainMatch ? domainMatch[1] : "web";
@@ -319,6 +319,11 @@ export function buildWikiWebMarkdown({ title, url, date, author, bodyText, aiSum
   // ── 본문 (첫 3000자, [[wikilinks]] 주입) ─────────────────────────────
   const bodyWithLinks = injectWikiLinks((bodyText || "").slice(0, 3000), entities);
 
+  // ── 이미지 섹션 (includeImages: true일 때만) ──────────────────────────
+  const imgSection = (includeImages && images?.length)
+    ? "## 이미지\n\n" + images.map(i => `![${i.alt || "image"}](${i.src})`).join("\n")
+    : null;
+
   // ── 조립 ──────────────────────────────────────────────────────────────
   const parts = [
     `# ${title || "(제목 없음)"}`,
@@ -350,6 +355,8 @@ export function buildWikiWebMarkdown({ title, url, date, author, bodyText, aiSum
     "## 본문",
     "",
     bodyWithLinks,
+    imgSection ? "" : null,
+    imgSection,
   ].filter((p) => p !== null);
 
   return parts.join("\n");
