@@ -3,9 +3,9 @@
 import { formatTimestamp } from "./youtube.js";
 import { MD_CONFIG } from "./config.js";
 
-export function buildMarkdown({ meta, captions, captionLang, aiSummary, relatedVideos, sttUsed, frames, translatedCaptions }) {
+export function buildMarkdown({ meta, captions, captionLang, aiSummary, relatedVideos, sttUsed, frames, translatedCaptions, aiTags }) {
   const S = MD_CONFIG.SECTIONS;
-  const fm = buildFrontmatter({ meta, captionLang, sttUsed });
+  const fm = buildFrontmatter({ meta, captionLang, sttUsed, aiTags });
   const header = buildHeader(meta);
   const desc = meta.description?.trim() ? `## ${S.DESCRIPTION}\n${meta.description.trim()}\n` : "";
   const transcript = buildTranscript(captions, sttUsed);
@@ -42,7 +42,7 @@ function buildRelated(items) {
   return lines.join("\n") + "\n";
 }
 
-function buildFrontmatter({ meta, captionLang, sttUsed }) {
+function buildFrontmatter({ meta, captionLang, sttUsed, aiTags }) {
   const lines = [
     "---",
     `title: ${yamlString(meta.title)}`,
@@ -57,8 +57,11 @@ function buildFrontmatter({ meta, captionLang, sttUsed }) {
     `source: ${yamlString(sttUsed ? "stt" : "captions")}`,
     `thumbnail: ${yamlString(meta.thumbnail)}`,
   ];
-  if (meta.keywords?.length) {
-    lines.push(`tags: [${meta.keywords.map((k) => yamlString(k)).join(", ")}]`);
+  const kwTags = (meta.keywords || []).map((k) => yamlString(k));
+  const autoTags = (aiTags || []).map((t) => yamlString(t));
+  const allTags = [...kwTags, ...autoTags];
+  if (allTags.length) {
+    lines.push(`tags: [${allTags.join(", ")}]`);
   }
   lines.push("---", "");
   return lines.join("\n");
@@ -191,9 +194,9 @@ export function buildFilename({ meta, pattern }) {
 // ── 웹 페이지 캡쳐 마크다운 ──────────────────────────────────────────────────
 // YouTube와 달리 타임스탬프 세그먼트 없음. frontmatter는 source: "web" 고정.
 
-export function buildWebMarkdown({ title, url, date, author, bodyText, aiSummary, images, includeImages }) {
+export function buildWebMarkdown({ title, url, date, author, bodyText, aiSummary, images, includeImages, aiTags }) {
   const captured = new Date().toISOString();
-  const fm = [
+  const fmLines = [
     "---",
     `title: ${yamlString(title)}`,
     `url: ${yamlString(url)}`,
@@ -201,9 +204,10 @@ export function buildWebMarkdown({ title, url, date, author, bodyText, aiSummary
     `author: ${yamlString(author || "")}`,
     `captured: ${yamlString(captured)}`,
     `source: "web"`,
-    "---",
-    "",
-  ].join("\n");
+  ];
+  if (aiTags?.length) fmLines.push(`tags: [${aiTags.map((t) => yamlString(t)).join(", ")}]`);
+  fmLines.push("---", "");
+  const fm = fmLines.join("\n");
 
   const datePart = date ? ` | **날짜**: ${date}` : "";
   const authorPart = author ? ` | **저자**: ${author}` : "";

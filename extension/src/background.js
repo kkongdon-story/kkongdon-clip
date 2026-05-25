@@ -8,7 +8,7 @@ import {
 } from "../lib/youtube.js";
 import { buildMarkdown, buildFilename, safeFilename, buildWebMarkdown, buildWebFilename, buildSelectionMarkdown, buildSelectionFilename } from "../lib/markdown.js";
 import { generateOutput, FORMAT_INFO } from "../lib/formatters.js";
-import { summarize, classify, transcribeAudio, checkHelperHealth, polishTranscript, polishAndTranslate, runPythonHook, summarizeWeb, writeObsidianFile, extractEntities } from "../lib/aiBridge.js";
+import { summarize, classify, autoTag, transcribeAudio, checkHelperHealth, polishTranscript, polishAndTranslate, runPythonHook, summarizeWeb, writeObsidianFile, extractEntities } from "../lib/aiBridge.js";
 import { buildWikiYouTubeMarkdown, buildWikiWebMarkdown } from "../lib/wikiFormatter.js";
 import { captureWebPage } from "../lib/webCapture.js";
 import { sendToNotion } from "../lib/notionSync.js";
@@ -33,6 +33,11 @@ function applySubfolderToFilename(filename, subfolder) {
   const slashIdx = filename.indexOf("/");
   if (slashIdx === -1) return `${safe}/${filename}`;
   return `${filename.slice(0, slashIdx + 1)}${safe}/${filename.slice(slashIdx + 1)}`;
+}
+
+// 하이라이트 저장용 URL 정규화 — fragment 제거
+function normalizeHighlightUrl(url) {
+  try { const u = new URL(url); u.hash = ""; return u.href; } catch { return url; }
 }
 
 // [P1.1] polishAndTranslate 응답 파싱 — <POLISHED>...</POLISHED><TRANSLATION>...</TRANSLATION>
@@ -127,6 +132,28 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     checkHelperHealth().then((r) => sendResponse({ ok: true, result: r }))
       .catch((e) => sendResponse({ ok: false, error: e.message }));
     return true;
+  }
+  if (msg?.type === "SAVE_HIGHLIGHT") {
+    // highlighter.js → 하이라이트 저장 요청
+    const { highlight } = msg;
+    const normalUrl = normalizeHighlightUrl(highlight?.url || "");
+    if (!normalUrl || !highlight?.text) { sendResponse({ ok: false }); return; }
+    (async () => {
+      const stored = await chrome.storage.local.get("kkongdon_highlights");
+      const all = stored.kkongdon_highlights || {};
+      if (!all[normalUrl]) all[normalUrl] = [];
+      all[normalUrl].unshift({          // 최신순
+        text:      highlight.text.slice(0, 1000),
+        context:   (highlight.context || "").slice(0, 200),
+        color:     highlight.color || "#FFE066",
+        timestamp: highlight.timestamp || new Date().toISOString(),
+        title:     highlight.title || "",
+      });
+      if (all[normalUrl].length > 50) all[normalUrl] = all[normalUrl].slice(0, 50);
+      await chrome.storage.local.set({ kkongdon_highlights: all });
+      sendResponse({ ok: true });
+    })();
+    return true;  // 비동기 응답 유지
   }
 });
 
@@ -224,11 +251,39 @@ async function handleWebCapture(tabId, url, format = "md", subfolder = "") {
     stop();
   }
 
+  // AI 태그 자동 분류 (enableAutoTag + AI 활성 시)
+  let aiTags = [];
+  if (settings.enableAutoTag && settings.aiProvider !== "none") {
+    try {
+      aiTags = await autoTag({
+        provider: settings.aiProvider,
+        title: data.title,
+        summary: aiSummary?.text,
+        bodyText: data.bodyText,
+        ollamaModel: settings.ollamaModel,
+        claudeModel: settings.claudeModel,
+      });
+    } catch {}
+  }
+
+  // 저장된 하이라이트 로드 (해당 URL의 하이라이트가 있으면 MD에 첨부)
+  const _normUrl = normalizeHighlightUrl(url);
+  const _hlStore = await chrome.storage.local.get("kkongdon_highlights").catch(() => ({}));
+  const _pageHighlights = (_hlStore.kkongdon_highlights || {})[_normUrl] || [];
+
   // Wiki 서식 또는 기본 MD 선택
   const _imgOpts = { images: data.images || [], includeImages: settings.includeImages ?? false };
-  const md = (settings.enableWikiFormat)
-    ? buildWikiWebMarkdown({ ...data, aiSummary, entities, ..._imgOpts })
-    : buildWebMarkdown({ ...data, aiSummary, ..._imgOpts });
+  let md = (settings.enableWikiFormat)
+    ? buildWikiWebMarkdown({ ...data, aiSummary, entities, ..._imgOpts, aiTags })
+    : buildWebMarkdown({ ...data, aiSummary, ..._imgOpts, aiTags });
+
+  // 하이라이트 섹션 — 저장된 항목이 있을 때만 추가
+  if (_pageHighlights.length) {
+    const hlLines = _pageHighlights.map((h, i) =>
+      `${i + 1}. > ${h.text}${h.context ? `\n   *…${h.context}…*` : ""}\n   <small>${h.timestamp.slice(0, 10)}</small>`
+    ).join("\n\n");
+    md += `\n\n## 내 하이라이트\n\n${hlLines}`;
+  }
 
   const baseFilename = applySubfolderToFilename(
     buildWebFilename({ title: data.title }),
@@ -982,8 +1037,22 @@ async function handleCapture(msg, sender) {
     stopEnt();
   }
 
+  // AI 태그 자동 분류 (enableAutoTag + AI 활성 시)
+  let aiTags = [];
+  if (settings.enableAutoTag && settings.aiProvider !== "none") {
+    try {
+      aiTags = await autoTag({
+        provider: settings.aiProvider,
+        title: meta.title,
+        summary: aiSummary?.text,
+        ollamaModel: settings.ollamaModel,
+        claudeModel: settings.claudeModel,
+      });
+    } catch {}
+  }
+
   const captureData = {
-    meta, captions, captionLang, aiSummary,
+    meta, captions, captionLang, aiSummary, aiTags,
     translatedCaptions,   // null이면 번역 없음 / 동일 언어
     relatedVideos: includeRelated, sttUsed, frames: [],
   };
@@ -992,7 +1061,7 @@ async function handleCapture(msg, sender) {
 
   // Wiki 서식이 켜진 경우 MD는 wiki 포맷으로 빌드
   const output = (settings.enableWikiFormat && format === "md")
-    ? buildWikiYouTubeMarkdown({ meta, captions, captionLang, aiSummary, entities, translatedCaptions })
+    ? buildWikiYouTubeMarkdown({ meta, captions, captionLang, aiSummary, entities, translatedCaptions, aiTags })
     : generateOutput(format, captureData);
 
   const subfolder = msg.subfolder || "";

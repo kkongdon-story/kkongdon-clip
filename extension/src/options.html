@@ -303,6 +303,30 @@
         <code>![alt](url)</code> 형태로 본문 아래 이미지 섹션이 추가됩니다.
       </div>
     </div>
+
+    <div style="margin-top:16px">
+      <label style="font-weight:500; display:block; margin-bottom:6px">🏷️ AI 태그 자동 분류</label>
+      <label class="checkbox">
+        <input type="checkbox" id="enableAutoTag" />
+        캡처 시 AI가 콘텐츠를 분석해 3~5개 해시태그 자동 생성 (AI 필요, 기본 OFF)
+      </label>
+      <div class="hint" style="margin-top:4px">
+        YAML frontmatter / wiki 메타데이터의 <code>tags:</code> 필드에 추가됩니다.
+        예: <code>tech, ai, productivity</code>
+      </div>
+    </div>
+
+    <div style="margin-top:16px">
+      <label style="font-weight:500; display:block; margin-bottom:6px">🖊️ 웹 하이라이터</label>
+      <label class="checkbox">
+        <input type="checkbox" id="enableHighlighter" />
+        웹 페이지에서 텍스트 드래그 선택 시 🖊️ 저장 버튼 표시 (기본 ON)
+      </label>
+      <div class="hint" style="margin-top:4px">
+        저장된 하이라이트는 해당 페이지 캡처 시 <strong>내 하이라이트</strong> 섹션으로 MD에 자동 포함됩니다.
+        변경 후 설정 저장 + 확장 새로고침 필요.
+      </div>
+    </div>
   </div>
 
   <!-- 프리미엄 (비활성, 곧 출시 예정) -->

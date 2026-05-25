@@ -221,6 +221,30 @@ export function classify({ provider, meta }) {
   return callHelper({ action: "summarize", provider, prompt }, { timeoutMs: 30000 });
 }
 
+// AI 태그 자동 분류 — 제목·요약으로 3~5개 영어 소문자 해시태그 생성
+export async function autoTag({ provider, title, summary, bodyText, ollamaModel, claudeModel }) {
+  const content = (summary || "").slice(0, 600) || (bodyText || "").slice(0, 600);
+  const prompt = [
+    "다음 콘텐츠에 어울리는 해시태그를 3~5개 생성하세요.",
+    "규칙: 영어 소문자, 하이픈으로 단어 연결, 쉼표로 구분, 한 줄에만 출력.",
+    "예: tech, ai, productivity, machine-learning",
+    "설명 없이 태그만 출력하세요.",
+    "",
+    `제목: ${title || ""}`,
+    `내용: ${content}`,
+  ].join("\n");
+  const res = await callHelper(
+    { action: "summarize", provider, prompt, ollamaModel, claudeModel },
+    { timeoutMs: 20000 }
+  );
+  const line = (res?.text || "").trim().split("\n")[0];
+  return line
+    .split(/[,\s]+/)
+    .map((t) => t.replace(/^#/, "").trim().toLowerCase())
+    .filter((t) => t.length > 1 && /^[a-z0-9-]+$/.test(t))
+    .slice(0, 5);
+}
+
 // Python 커스텀 hook: ~/.youtube-capture/transcript_hook.py 호출
 export function runPythonHook({ segments, meta, captionLang }) {
   return callHelper(

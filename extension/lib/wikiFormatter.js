@@ -171,7 +171,7 @@ function msToTs(ms) {
  * @param {object} params.entities          - { people, companies, technologies, concepts } | null
  * @param {Array}  params.translatedCaptions - [{ startMs, text }] | null — polishAndTranslate 결과
  */
-export function buildWikiYouTubeMarkdown({ meta, captions, captionLang, aiSummary, entities, translatedCaptions }) {
+export function buildWikiYouTubeMarkdown({ meta, captions, captionLang, aiSummary, entities, translatedCaptions, aiTags }) {
   const date     = todayStr();
   const videoUrl = `https://www.youtube.com/watch?v=${meta.videoId}`;
   const title    = meta.title || "(제목 없음)";
@@ -187,7 +187,8 @@ export function buildWikiYouTubeMarkdown({ meta, captions, captionLang, aiSummar
     `date: ${date}`,
     `lang: ${captionLang || "und"}`,
     `url: ${videoUrl}`,
-  ].join("\n");
+    aiTags?.length ? `tags: ${aiTags.join(", ")}` : null,
+  ].filter(Boolean).join("\n");
 
   // ── One-line Definition ────────────────────────────────────────────────
   const oneLiner = extractOneLiner(aiSummary?.text)
@@ -280,7 +281,7 @@ export function buildWikiYouTubeMarkdown({ meta, captions, captionLang, aiSummar
  * @param {object} params.aiSummary - { provider, text } | null
  * @param {object} params.entities  - { people, companies, technologies, concepts } | null
  */
-export function buildWikiWebMarkdown({ title, url, date, author, bodyText, aiSummary, entities, images, includeImages }) {
+export function buildWikiWebMarkdown({ title, url, date, author, bodyText, aiSummary, entities, images, includeImages, aiTags }) {
   const effectiveDate = date || todayStr();
   const domainMatch   = (url || "").match(/^https?:\/\/([^/]+)/);
   const domain        = domainMatch ? domainMatch[1] : "web";
@@ -293,6 +294,7 @@ export function buildWikiWebMarkdown({ title, url, date, author, bodyText, aiSum
     author ? `author: ${author}` : null,
     `date: ${effectiveDate}`,
     `url: ${url || ""}`,
+    aiTags?.length ? `tags: ${aiTags.join(", ")}` : null,
   ].filter(Boolean);
 
   // ── One-line Definition ────────────────────────────────────────────────

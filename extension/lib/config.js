@@ -103,4 +103,6 @@ export const SETTING_DEFAULTS = {
   // AI 요약 메타 지침 (CLAUDE.md와 동일한 개념 — 모든 요약 프롬프트 앞에 prepend)
   summaryInstruction: "문장을 항상 완전하게 작성하세요. 절대로 문장 중간에 끊지 마세요. 핵심 포인트의 각 항목은 반드시 마침표로 끝나는 완전한 문장이어야 합니다. 개요는 2~3개의 완전한 문장으로 작성하세요.",
   includeImages: false,    // 웹 캡처 시 본문 이미지 URL을 MD에 포함 (기본 OFF)
+  enableAutoTag: false,    // AI가 콘텐츠 분석 후 3~5개 해시태그 자동 생성 (AI 필요)
+  enableHighlighter: true, // 웹 페이지 텍스트 선택 시 🖊️ 하이라이트 저장 버튼 표시
 };
