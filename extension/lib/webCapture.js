@@ -87,14 +87,24 @@ async function _extractPageContent() {
   const NOISE = [
     "script", "style", "noscript", "iframe", "object", "embed",
     "nav", "header", "footer", "aside",
+    // 버튼·툴바 — 본문 텍스트가 아님
+    "button", "[role='button']",
     "[class*='ad-']", "[class*='-ad']", "[id*='ad-']", "[id*='-ad']",
     "[class*='banner']", "[class*='popup']", "[class*='cookie']",
     "[class*='newsletter']", "[class*='subscribe']",
     "[class*='comment']", "[id*='comment']",
     "[id*='sidebar']", "[class*='sidebar']",
-    // 추가: 공유·추천·이전다음 노이즈
+    // 공유·추천·이전다음 노이즈
     "[class*='sns-']", "[class*='share-']", "[class*='related-']",
     "[class*='recommend-']", "[class*='prev-next']",
+    // 한국 뉴스 UI 패턴 (기자 구독, 스크랩, 공유, 글자크기, 프린트 등)
+    "[class*='reporter']", "[class*='journalist']", "[class*='writer-info']",
+    "[class*='article-tool']", "[class*='news-tool']", "[class*='tool-bar']",
+    "[class*='article-sns']", "[class*='article-share']",
+    "[class*='font-size']", "[class*='fontsize']", "[class*='font-ctrl']",
+    "[class*='print']", "[class*='scrap']",
+    "[class*='btn-']", "[class*='-btn']", "[class*='_btn']",
+    "[class*='copyright']", "[class*='tag-list']", "[class*='keyword']",
   ].join(",");
 
   let root;
@@ -158,7 +168,26 @@ async function _extractPageContent() {
   }
 
   // ── 본문 텍스트 추출 — DOM 워커로 문단 구분 보존 ────────────────────────────
-  const bodyText = extractBlockText(bodyEl || root || document.body);
+  const _rawText = extractBlockText(bodyEl || root || document.body);
+
+  // UI 라벨 후처리 필터 — 짧은 줄 중 알려진 버튼/툴바 텍스트 제거
+  // 뉴스 사이트에서 기자 구독·공유·스크랩·글자크기 등이 섞이는 문제 방지
+  const UI_LABEL_RE = /^(구독|공유|스크랩|댓글|프린트|신고|좋아요|싫어요|저장|더보기|닫기|펼치기|열기|글자|폰트|폰트크기|이전|다음|목록|홈|메뉴|검색|로그인|회원가입|기자|작성자|복사|링크복사|url복사|카카오|페이스북|트위터|밴드|네이버|뒤로|앞으로|새로고침|share|print|scrap|subscribe|like|dislike|comment)(\s*(하기|보기|크기|설정|조절|복사|전송|남기기))?$/i;
+
+  const bodyText = _rawText
+    .split('\n')
+    .filter(line => {
+      const t = line.trim();
+      if (!t) return false;
+      // 20자 이하 짧은 줄 중 UI 패턴 → 제거
+      if (t.length <= 20 && UI_LABEL_RE.test(t)) return false;
+      // 아이콘 텍스트 대체 패턴 (숫자만 또는 특수문자만) → 제거
+      if (t.length <= 6 && /^[\d,\.]+$/.test(t)) return false;
+      return true;
+    })
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 
   // ── 이미지 수집 (bodyEl 기준, 추적 픽셀·data: URI 제외) ─────────────────────
   // 클론 노드는 naturalWidth=0 → URL 패턴으로 추적 픽셀 1차 필터, 크기는 2차 보조
