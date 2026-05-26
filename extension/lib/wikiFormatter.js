@@ -159,6 +159,38 @@ function msToTs(ms) {
   return h > 0 ? `${p(h)}:${p(m)}:${p(sec)}` : `${p(m)}:${p(sec)}`;
 }
 
+// ── 자막 세그먼트 → 문단 그루핑 (타임스탬프 없음) ──────────────────────────
+// markdown.js 의 groupCaptionsToParagraphs와 동일한 로직 (의존성 분리 유지)
+function groupIntoParagraphs(captions) {
+  const MAJOR_GAP = 1500;   // 문장 종결 후 1.5초 → 새 문단
+  const HARD_GAP  = 5000;   // 5초 이상 → 무조건 새 문단
+  const MAX_CHARS = 400;    // 한 문단 최대 약 400자
+  const SENT_END  = /[.!?…。？！]\s*$/;
+  const paragraphs = [];
+  let cur = null;
+
+  for (const c of captions) {
+    if (!c?.text) continue;
+    const prev = cur?.parts[cur.parts.length - 1];
+    const gap  = prev ? c.startMs - prev.startMs : Infinity;
+    const prevEnds = prev ? SENT_END.test(prev.text) : false;
+    const tooLong  = cur && cur.charCount >= MAX_CHARS && prevEnds;
+    const majorBreak = prevEnds && gap >= MAJOR_GAP;
+    const hardBreak  = gap >= HARD_GAP;
+
+    if (!cur || majorBreak || tooLong || hardBreak) {
+      cur = { parts: [], charCount: 0 };
+      paragraphs.push(cur);
+    }
+    cur.parts.push(c);
+    cur.charCount += c.text.length + 1;
+  }
+
+  return paragraphs.map((p) => ({
+    text: p.parts.map((x) => x.text).join(" ").replace(/\s+/g, " ").trim(),
+  }));
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // ── YouTube 캡처 → wiki Source page ────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════════════════
@@ -218,12 +250,9 @@ export function buildWikiYouTubeMarkdown({ meta, captions, captionLang, aiSummar
   ];
   const relatedLines = buildRelatedPages(entities, extraLinks);
 
-  // ── 대본 (타임스탬프 + [[wikilinks]]) ────────────────────────────────
-  const transcriptLines = captions.map((c) => {
-    const ts   = msToTs(c.startMs);
-    const body = injectWikiLinks(c.text, entities);
-    return `[${ts}] ${body}`;
-  });
+  // ── 대본 (문단 그루핑 + [[wikilinks]], 타임스탬프 없음) ─────────────────
+  const _paragraphs   = groupIntoParagraphs(captions);
+  const transcriptLines = _paragraphs.map((p) => injectWikiLinks(p.text, entities));
 
   // ── 조립 ──────────────────────────────────────────────────────────────
   const parts = [

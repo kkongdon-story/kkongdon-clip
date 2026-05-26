@@ -48,17 +48,19 @@ export function checkHelperHealth() {
   return callHelper({ action: "health" }, { timeoutMs: 5000 });
 }
 
-export function summarize({ provider, captionsText, meta, language = "ko", ollamaModel, claudeModel, instruction = "" }) {
+export async function summarize({ provider, captionsText, meta, language = "ko", ollamaModel, claudeModel, instruction = "" }) {
   const cfg = AI_CONFIG.SUMMARY;
   const targetName = sourceLangName(language);
   const isKo = language.startsWith("ko");
 
-  // 엔티티 레이블 (config.js 에서 한 번에 수정 가능)
   const { PEOPLE, TECH, CONCEPTS } = cfg.ENTITY_LABELS;
   const { WHAT, WHY, HOW, TAKEAWAY } = cfg.LAYER_LABELS;
 
   const prompt = [
-    // 사용자 정의 메타 지침 (비어있으면 생략)
+    // ★ 최상단 배치 — 소형 모델은 앞쪽 지시를 더 잘 따름
+    `[필수] 전체 출력이 반드시 600자 이상이어야 합니다. 각 섹션을 충분히 작성하세요.`,
+    `[REQUIRED] Total output MUST be at least 600 characters. Write full sentences.`,
+    ``,
     instruction ? `[User instruction — follow strictly]: ${instruction}` : null,
     instruction ? `` : null,
     `You are a senior analyst. Analyze the following YouTube transcript and produce a structured report in ${targetName}.`,
@@ -73,35 +75,55 @@ export function summarize({ provider, captionsText, meta, language = "ko", ollam
     `**Output in ${targetName} — plain Markdown, no code blocks, no preamble. Follow this EXACT structure:**`,
     ``,
     `### 개요`,
-    `(${cfg.OVERVIEW_SENTENCES} sentences: the single most important takeaway, context, and conclusion)`,
+    `(${cfg.OVERVIEW_SENTENCES}문장: 영상의 핵심 주제·배경·결론을 담아 충분히 서술)`,
     ``,
     `### 등장 요소`,
-    `**${PEOPLE}**: (people, speakers, channel name, organizations — comma-separated, if none write "없음")`,
-    `**${TECH}**: (tools, frameworks, languages, software, platforms — comma-separated, if none write "없음")`,
-    `**${CONCEPTS}**: (domain terms, ideas, methodologies — comma-separated)`,
+    `**${PEOPLE}**: (인물·발표자·채널명·조직 — 쉼표 구분, 없으면 "없음")`,
+    `**${TECH}**: (도구·프레임워크·언어·플랫폼 — 쉼표 구분, 없으면 "없음")`,
+    `**${CONCEPTS}**: (핵심 개념·방법론·도메인 용어 — 쉼표 구분)`,
     ``,
     `### 층위 분석`,
-    `**[${WHAT}]** (1~2 sentences: what is this video about specifically)`,
-    `**[${WHY}]** (1~2 sentences: why does it matter / what problem does it solve)`,
-    `**[${HOW}]** (2~3 sentences: how it works, the process or method demonstrated)`,
-    `**[${TAKEAWAY}]** (1~2 sentences: the one thing a viewer should remember)`,
+    `**[${WHAT}]** (2문장: 이 영상이 구체적으로 다루는 내용)`,
+    `**[${WHY}]** (2문장: 왜 중요한가 / 어떤 문제를 해결하는가)`,
+    `**[${HOW}]** (3문장: 과정·방법·핵심 메커니즘)`,
+    `**[${TAKEAWAY}]** (2문장: 시청자가 반드시 기억할 핵심 교훈)`,
     ``,
     `### 핵심 포인트`,
-    `(${cfg.KEY_POINTS_COUNT} bullets, each a complete sentence, most important facts/steps/insights)`,
+    `(${cfg.KEY_POINTS_COUNT}개 bullet. 각 항목은 완전한 문장으로 핵심 사실·인사이트를 담을 것)`,
     `- `,
     `- `,
     ``,
-    `**HARD RULES:**`,
-    `- Total output must be at least 600 characters. Write full sentences, not fragments.`,
-    `- Do NOT include any timestamps ([MM:SS], [HH:MM:SS], or similar) anywhere in the output.`,
-    `- Do NOT add preamble or closing remarks outside the sections above.`,
-    isKo ? `- 모든 출력은 한국어로. 외국어 단어는 원문 유지(예: Laravel, Claude). 중국어/일본어 혼용 금지.` : "",
+    `**규칙:**`,
+    `- 타임스탬프 [MM:SS] [HH:MM:SS] 출력 절대 금지.`,
+    `- 섹션 외 서문·마무리 문장 금지.`,
+    isKo ? `- 모든 출력은 한국어로. 외국어 고유명사는 원문 유지(예: Claude, GitHub). 중국어·일본어 혼용 금지.` : "",
   ].filter(Boolean).join("\n");
 
-  return callHelper(
+  const res = await callHelper(
     { action: "summarize", provider, prompt, ollamaModel, claudeModel },
     { timeoutMs: AI_CONFIG.TIMEOUTS.SUMMARIZE }
   );
+
+  // 소형 Ollama 모델 대응: 출력 < 500자이면 확장 재시도 1회
+  const MIN_LEN = 500;
+  if ((res.text || "").length < MIN_LEN) {
+    console.warn("[YTC] 요약 짧음 (", res.text?.length, "자) — 확장 재시도");
+    const expandPrompt = [
+      `아래 보고서를 반드시 600자 이상으로 확장하세요. 섹션 구조(### 개요 / ### 등장 요소 / ### 층위 분석 / ### 핵심 포인트)를 그대로 유지하세요.`,
+      `- ### 개요: 4~6문장으로 확장`,
+      `- ### 층위 분석: 각 항목 2~3문장`,
+      `- ### 핵심 포인트: 12~15개, 각 항목 완전한 문장`,
+      `- 타임스탬프 [MM:SS] 포함 금지. 서문·마무리 없이 보고서만 출력.`,
+      ``,
+      res.text || "",
+    ].join("\n");
+    return callHelper(
+      { action: "summarize", provider, prompt: expandPrompt, ollamaModel, claudeModel },
+      { timeoutMs: AI_CONFIG.TIMEOUTS.SUMMARIZE }
+    );
+  }
+
+  return res;
 }
 
 // polish + translate 통합 호출 — 한 번의 LLM 호출로 둘 다 수행
