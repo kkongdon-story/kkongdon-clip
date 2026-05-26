@@ -23,8 +23,8 @@ const DEFAULTS = SETTING_DEFAULTS;
 let lastCapture = null;
 
 // ── 하위 폴더 경로 적용 ────────────────────────────────────────────────────
-// filename: "YouTube-Capture/channel/date_title.md" 형태
-// subfolder: "개발" → "YouTube-Capture/개발/channel/date_title.md"
+// filename: "kkongdon-capture/channel/date_title.md" 형태
+// subfolder: "개발" → "kkongdon-capture/개발/channel/date_title.md"
 function applySubfolderToFilename(filename, subfolder) {
   if (!subfolder) return filename;
   const safe = subfolder.replace(/[<>:"|?*\\]/g, "_").trim();
@@ -1143,7 +1143,7 @@ async function handleFrame(msg, sender) {
   const { videoId, currentTime, dataUrl } = msg;
   if (!lastCapture) {
     const ts = msToTs(Math.floor(currentTime * 1000));
-    const standalone = `YouTube-Capture/frames/${videoId || "unknown"}_${ts.replace(/:/g, "-")}.jpg`;
+    const standalone = `kkongdon-capture/frames/${videoId || "unknown"}_${ts.replace(/:/g, "-")}.jpg`;
     await chrome.downloads.download({ url: dataUrl, filename: standalone, conflictAction: "uniquify", saveAs: false });
     return { ok: true, filename: standalone, note: "독립 프레임" };
   }

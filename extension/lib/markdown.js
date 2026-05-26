@@ -188,7 +188,7 @@ export function buildFilename({ meta, pattern }) {
   for (const [k, v] of Object.entries(tokens)) out = out.split(k).join(v);
   // 경로 구분자만 살리고 각 세그먼트는 안전화
   const parts = out.split("/").map((p) => safeFilename(p));
-  return `YouTube-Capture/${parts.join("/")}.md`;
+  return `kkongdon-capture/${parts.join("/")}.md`;
 }
 
 // ── 웹 페이지 캡쳐 마크다운 ──────────────────────────────────────────────────
