@@ -15,8 +15,8 @@ export const AI_CONFIG = {
 
   // 요약 프롬프트 구조 — 여기만 수정하면 aiBridge.js 프롬프트가 자동 반영됩니다
   SUMMARY: {
-    OVERVIEW_SENTENCES: "3~5",     // 개요 단락 문장 수
-    KEY_POINTS_COUNT:   "10~15",   // 핵심 포인트 개수
+    OVERVIEW_SENTENCES: "4~6",      // 개요 단락 문장 수 (600자+ 목표)
+    KEY_POINTS_COUNT:   "12~15",   // 핵심 포인트 개수 (600자+ 목표)
 
     // ─ 엔티티 레이블 (언어를 바꿀 경우 이 객체만 수정) ─
     ENTITY_LABELS: {

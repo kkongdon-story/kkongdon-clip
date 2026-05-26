@@ -872,6 +872,24 @@ async function handleCapture(msg, sender) {
   // [3] AI 대본 정리 (polish) + 필요 시 번역 (polishAndTranslate 통합 호출)
   // - 동일 언어: polishTranscript()만 — 청크 병렬
   // - 다른 언어: polishAndTranslate() — 한 번의 LLM 호출로 정리+번역 동시 수행 (토큰 ~50% 절감)
+  // ── 요약 병렬 실행 준비 ────────────────────────────────────────────────────
+  // polish와 동시에 시작 → 총 시간 = max(polish, summarize), 직렬 대비 요약 시간 절감
+  const MAX_SUMMARIZE = AI_CONFIG.OLLAMA.MAX_SUMMARIZE_CHARS;
+  const _rawSumText = captions.map(c => c.text).join("\n")
+    .replace(/\[\d{1,2}:\d{2}(?::\d{2})?\]\s*/g, ""); // 요약 입력에서 타임스탬프 제거
+  if (_rawSumText.length > MAX_SUMMARIZE) console.warn("[YTC] 요약 입력 자름:", MAX_SUMMARIZE, "자");
+  const _summarizeInput = _rawSumText.length > MAX_SUMMARIZE
+    ? _rawSumText.slice(0, MAX_SUMMARIZE) : _rawSumText;
+  const wantSummarize = settings.enableSummary && settings.aiProvider !== "none" && captions.length;
+  const summarizePromise = wantSummarize
+    ? summarize({
+        provider: settings.aiProvider, captionsText: _summarizeInput, meta,
+        language: settings.summaryLanguage || "ko",
+        ollamaModel: settings.ollamaModel, claudeModel: settings.claudeModel,
+        instruction: settings.summaryInstruction || "",
+      }).catch(e => { console.warn("[YTC] 요약 오류:", e.message); return null; })
+    : null;
+
   const wantPolish = settings.aiProvider !== "none" && settings.enablePolish !== false && captions.length;
   const targetLang  = settings.summaryLanguage || "ko";
   const srcBase     = (captionLang || "").toLowerCase().split(/[-_]/)[0];
@@ -985,25 +1003,15 @@ async function handleCapture(msg, sender) {
     }
   }
 
-  // AI 요약 (선택, captions가 polish된 상태에서 수행)
+  // 병렬 실행된 요약 결과 수집 (polish 진행 중에 이미 실행됨)
   let aiSummary = null;
-  if (settings.enableSummary && settings.aiProvider !== "none" && captions.length) {
-    const stop = startHeartbeat(tabId, `AI 요약 생성 중 (${settings.aiProvider})`);
-    try {
-      // 요약 입력 글자 수 제한: 긴 영상에서 과도한 토큰 소모 및 속도 저하 방지
-      const MAX_SUMMARIZE = AI_CONFIG.OLLAMA.MAX_SUMMARIZE_CHARS;
-      let captionsText = captions.map((c) => c.text).join("\n");
-      if (captionsText.length > MAX_SUMMARIZE) {
-        captionsText = captionsText.slice(0, MAX_SUMMARIZE);
-        console.warn("[YTC] 요약 입력 자름:", MAX_SUMMARIZE, "자");
-      }
-      const res = await summarize({ provider: settings.aiProvider, captionsText, meta, language: settings.summaryLanguage, ollamaModel: settings.ollamaModel, claudeModel: settings.claudeModel, instruction: settings.summaryInstruction || "" });
+  if (summarizePromise) {
+    const res = await summarizePromise; // polish 완료 시점엔 대부분 이미 끝남
+    if (res?.text) {
       aiSummary = { provider: settings.aiProvider, text: res.text };
-      const sec = stop();
-      await notifyTab(tabId, `요약 완료 (${sec}s)`, 4000);
-    } catch (e) {
-      stop();
-      await notifyTab(tabId, `AI 요약 실패: ${e.message}`, 8000);
+      await notifyTab(tabId, `요약 완료`, 3000);
+    } else if (wantSummarize) {
+      await notifyTab(tabId, `AI 요약 실패 (본문만 저장)`, 5000);
     }
   }
 

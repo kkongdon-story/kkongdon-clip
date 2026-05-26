@@ -90,7 +90,12 @@ export function summarize({ provider, captionsText, meta, language = "ko", ollam
     `(${cfg.KEY_POINTS_COUNT} bullets, each a complete sentence, most important facts/steps/insights)`,
     `- `,
     `- `,
-    isKo ? `\n모든 출력은 한국어로. 외국어 단어는 원문 유지(예: Laravel, Claude). 중국어/일본어 혼용 금지.` : "",
+    ``,
+    `**HARD RULES:**`,
+    `- Total output must be at least 600 characters. Write full sentences, not fragments.`,
+    `- Do NOT include any timestamps ([MM:SS], [HH:MM:SS], or similar) anywhere in the output.`,
+    `- Do NOT add preamble or closing remarks outside the sections above.`,
+    isKo ? `- 모든 출력은 한국어로. 외국어 단어는 원문 유지(예: Laravel, Claude). 중국어/일본어 혼용 금지.` : "",
   ].filter(Boolean).join("\n");
 
   return callHelper(
