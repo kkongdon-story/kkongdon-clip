@@ -1,5 +1,5 @@
 /**
- * kkongdon capture — 웹 하이라이터 content script
+ * KKONGDON Clip — 웹 하이라이터 content script
  * 텍스트 선택 → 🖊️ 저장 버튼 → chrome.storage에 보관
  * 설정: enableHighlighter (기본 true)
  *
